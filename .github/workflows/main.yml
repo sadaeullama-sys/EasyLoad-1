@@ -11,67 +11,58 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.5'
           channel: stable
           cache: true
-
-      - name: Create Android platform and configure Kotlin
+      - name: Create Android platform and enable camera
         shell: bash
         run: |
           set -euo pipefail
           test -f pubspec.yaml
           grep -q '^name: easyload_shop_manager$' pubspec.yaml
           flutter create --project-name easyload_shop_manager . --platforms=android --org com.ilyas.easyload
-
           python3 - <<'PY'
           from pathlib import Path
-          import re
-
-          manifest = Path('android/app/src/main/AndroidManifest.xml')
-          text = manifest.read_text()
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
           permission = '    <uses-permission android:name="android.permission.CAMERA" />\n'
-          if 'android.permission.CAMERA' not in text:
-              text = text.replace(
-                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
-                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n' + permission
-              )
-          manifest.write_text(text)
-
-          settings = Path('android/settings.gradle')
-          if not settings.exists():
-              raise SystemExit('android/settings.gradle was not generated')
-          text = settings.read_text()
-          pattern = r"""(id\s+["']org\.jetbrains\.kotlin\.android["']\s+version\s+["'])[^"']+(["']\s+apply\s+false)"""
-          text, count = re.subn(pattern, r'\g<1>1.9.24\g<2>', text)
-          if count == 0:
-              raise SystemExit('Could not find Kotlin Android plugin declaration in android/settings.gradle')
-          settings.write_text(text)
-          print('Configured org.jetbrains.kotlin.android 1.9.24')
+          if 'android.permission.CAMERA' not in s:
+              s = s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n' + permission)
+          p.write_text(s)
           PY
           rm -rf test
-
-      - name: Verify Android Kotlin plugin
-        run: grep -n 'org.jetbrains.kotlin.android' android/settings.gradle
-
+      - name: Set Kotlin Gradle plugin version
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f android/settings.gradle
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          import re
+          p = Path("android/settings.gradle")
+          s = p.read_text()
+          pattern = r'(id\s+["\']org\.jetbrains\.kotlin\.android["\']\s+version\s+["\'])[0-9.]+(["\'])'
+          s2, count = re.subn(pattern, r'\g<1>2.0.0\g<2>', s)
+          if count == 0:
+              raise SystemExit("Could not find Kotlin plugin declaration in android/settings.gradle")
+          p.write_text(s2)
+          print("Updated Kotlin Gradle plugin to 2.0.0")
+          PYTHON
+          grep -n 'org.jetbrains.kotlin.android' android/settings.gradle
       - name: Get dependencies
         run: flutter pub get
-
       - name: Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
-
       - name: Build release APK
         run: flutter build apk --release
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
