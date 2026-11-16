@@ -23,8 +23,15 @@ jobs:
           flutter-version: '3.24.5'
           channel: stable
           cache: true
-      - name: Create Android platform files
-        run: flutter create . --platforms=android --org com.ilyas.easyload
+      - name: Verify project and create Android platform files
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Repository root: $PWD"
+          test -f pubspec.yaml || { echo "ERROR: pubspec.yaml is not in repository root"; exit 1; }
+          grep -n '^name:' pubspec.yaml
+          flutter create --project-name easyload_shop_manager . --platforms=android --org com.ilyas.easyload
+          grep -n '^name:' pubspec.yaml
       - name: Get dependencies
         run: flutter pub get
       - name: Analyze
