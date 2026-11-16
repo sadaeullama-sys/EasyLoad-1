@@ -31,6 +31,9 @@ jobs:
           test -f pubspec.yaml || { echo "ERROR: pubspec.yaml is not in repository root"; exit 1; }
           grep -n '^name:' pubspec.yaml
           flutter create --project-name easyload_shop_manager . --platforms=android --org com.ilyas.easyload
+          # flutter create adds a default widget_test.dart that expects MyApp.
+          # This project entry point is EasyLoadApp, so remove the unused scaffold test.
+          rm -rf test
           grep -n '^name:' pubspec.yaml
       - name: Get dependencies
         run: flutter pub get
